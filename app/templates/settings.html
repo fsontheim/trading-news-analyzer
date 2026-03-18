@@ -150,115 +150,137 @@
         <div style="font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">
             ⚙️ FinBERT Engine Settings
         </div>
-        <form method="post" action="/api/engine/settings">
+
+        <!-- ── Profile Cards ──────────────────────────────────── -->
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px;">
+            {% set profiles = [
+                ("default",    "📊", "Default",               "Balanced, good starting point"),
+                ("0dte",       "⚡", "0DTE SPX/SPY",          "BullPut/BearCall/Iron Condor"),
+                ("swing",      "📈", "Swing Trading",         "Multi-day positions"),
+                ("event_day",  "🔥", "Event Day",             "FOMC / CPI / NFP"),
+            ] %}
+            {% for key, icon, label, desc in profiles %}
+            {% set is_active = (engine.active_profile == key) %}
+            <div class="profile-card {% if is_active %}profile-active{% endif %}"
+                 style="border:2px solid {% if is_active %}var(--blue){% else %}var(--border){% endif %};
+                        background:{% if is_active %}rgba(59,130,246,.07){% else %}var(--bg-row){% endif %};
+                        border-radius:9px; padding:14px; cursor:pointer; transition:all .2s;"
+                 onclick="activateProfile('{{ key }}')">
+                <div style="font-size:1.3rem; margin-bottom:6px;">{{ icon }}</div>
+                <div style="font-size:.82rem; font-weight:700; color:{% if is_active %}var(--blue){% else %}var(--text){% endif %}; margin-bottom:3px;">
+                    {{ label }}
+                    {% if is_active %}<span style="font-size:.65rem; font-weight:600; background:var(--blue); color:#fff; padding:1px 6px; border-radius:8px; margin-left:5px;">ACTIVE</span>{% endif %}
+                </div>
+                <div style="font-size:.7rem; color:var(--muted); margin-bottom:10px;">{{ desc }}</div>
+                {% set p = engine.profiles[key] %}
+                <div style="display:flex; flex-direction:column; gap:3px; font-size:.68rem;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--muted);">Bull/Bear</span>
+                        <span style="font-weight:600;">
+                            <span style="color:var(--green);">+{{ p.bull_threshold }}</span>
+                            /
+                            <span style="color:var(--red);">{{ p.bear_threshold }}</span>
+                        </span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--muted);">Window</span>
+                        <span style="font-weight:600; color:var(--blue);">{{ p.window_minutes }} min</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--muted);">Relevance</span>
+                        <span style="font-weight:600; color:var(--blue);">≥ {{ (p.relevance_threshold * 100)|int }}%</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Custom card — shown when no preset matches -->
+            {% set is_custom = (engine.active_profile == 'custom') %}
+            <div style="display:none;" id="custom-profile-card"><!-- placeholder --></div>
+        </div>
+
+        {% if engine.active_profile == 'custom' %}
+        <div style="margin-bottom:14px; padding:8px 12px; background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3); border-radius:7px; font-size:.75rem; color:var(--yellow);">
+            ✏️ Custom settings active — values have been manually adjusted from a preset.
+        </div>
+        {% endif %}
+
+        <!-- ── Manual Sliders ─────────────────────────────────── -->
+        <div style="font-size:.7rem; color:var(--muted); margin-bottom:10px; padding-top:4px;">
+            Manual overrides — changing any value creates a <strong>Custom</strong> profile:
+        </div>
+        <form method="post" action="/api/engine/settings" id="engine-form">
+            <input type="hidden" name="active_profile" value="custom">
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:14px; align-items:end;">
 
-                <!-- Bullish Threshold -->
                 <div>
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
-                        <span class="has-tip" data-tip="Score must be ≥ this value to be classified as Bullish. Lower = more sensitive, higher = more conservative. Range: 0.05 – 0.95">
-                            Bullish Threshold ⓘ
-                        </span>
+                        <span class="has-tip" data-tip="Score must be ≥ this value to trigger Bullish. Lower = more sensitive.">Bullish Threshold ⓘ</span>
                     </label>
-                    <input type="number" name="bull_threshold"
+                    <input type="number" name="bull_threshold" id="inp-bull"
                            value="{{ engine.bull_threshold }}"
                            min="0.05" max="0.95" step="0.05"
-                           style="font-weight:600; color:var(--green);">
-                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
-                        score ≥ <strong style="color:var(--green);">{{ engine.bull_threshold }}</strong> → bullish
-                    </div>
+                           style="font-weight:600; color:var(--green);"
+                           oninput="updatePreview()">
                 </div>
 
-                <!-- Bearish Threshold -->
                 <div>
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
-                        <span class="has-tip" data-tip="Score must be ≤ this value to be classified as Bearish. More negative = more conservative. Range: −0.05 to −0.95">
-                            Bearish Threshold ⓘ
-                        </span>
+                        <span class="has-tip" data-tip="Score must be ≤ this value to trigger Bearish. More negative = more conservative.">Bearish Threshold ⓘ</span>
                     </label>
-                    <input type="number" name="bear_threshold"
+                    <input type="number" name="bear_threshold" id="inp-bear"
                            value="{{ engine.bear_threshold }}"
                            min="-0.95" max="-0.05" step="0.05"
-                           style="font-weight:600; color:var(--red);">
-                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
-                        score ≤ <strong style="color:var(--red);">{{ engine.bear_threshold }}</strong> → bearish
-                    </div>
+                           style="font-weight:600; color:var(--red);"
+                           oninput="updatePreview()">
                 </div>
 
-                <!-- Window -->
                 <div>
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
-                        <span class="has-tip" data-tip="Rolling time window for the aggregate score. Shorter = reacts faster, more volatile. Longer = smoother, slower. Range: 1–120 min.">
-                            Aggregation Window ⓘ
-                        </span>
+                        <span class="has-tip" data-tip="Rolling aggregation window. Shorter = faster reaction, more volatile. Longer = smoother.">Aggregation Window ⓘ</span>
                     </label>
-                    <select name="window_minutes"
-                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
-                        {% for m in [1, 2, 5, 10, 15, 20, 30, 60, 120] %}
+                    <select name="window_minutes" id="inp-window"
+                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;"
+                        onchange="updatePreview()">
+                        {% for m in [1, 2, 3, 5, 10, 15, 20, 30, 60, 120] %}
                         <option value="{{ m }}" {% if engine.window_minutes == m %}selected{% endif %}>{{ m }} min</option>
                         {% endfor %}
                     </select>
-                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
-                        rolling <strong style="color:var(--blue);">{{ engine.window_minutes }} min</strong> window
-                    </div>
                 </div>
 
-                <!-- Relevance Threshold -->
                 <div>
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
-                        <span class="has-tip" data-tip="Minimum relevance score for a headline to be included in the aggregate. Higher = stricter filter, less noise. Lower = more headlines counted. Range: 0.05 – 0.95">
-                            Relevance Filter ⓘ
-                        </span>
+                        <span class="has-tip" data-tip="Minimum relevance score for a headline to count in the aggregate. Higher = stricter macro-only filter.">Relevance Filter ⓘ</span>
                     </label>
-                    <select name="relevance_threshold"
-                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
+                    <select name="relevance_threshold" id="inp-relevance"
+                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;"
+                        onchange="updatePreview()">
                         {% for v in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] %}
                         <option value="{{ v }}" {% if engine.relevance_threshold == v %}selected{% endif %}>≥ {{ (v * 100)|int }}%</option>
                         {% endfor %}
                     </select>
-                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
-                        min relevance <strong style="color:var(--blue);">{{ (engine.relevance_threshold * 100)|int }}%</strong>
-                    </div>
                 </div>
 
-                <!-- Save button -->
                 <div>
-                    <button type="submit" class="btn btn-primary" style="white-space:nowrap; height:38px;">
-                        💾 Save
-                    </button>
+                    <button type="submit" class="btn btn-primary" style="white-space:nowrap; height:38px;">💾 Save</button>
                 </div>
             </div>
 
-            <!-- Visual threshold bar -->
+            <!-- Visual threshold preview bar -->
             <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
                 <div style="font-size:.68rem; color:var(--muted); margin-bottom:6px;">Score Range Preview</div>
-                <div style="position:relative; height:24px; background:linear-gradient(to right,#7f1d1d,#dc2626,#f59e0b,#10b981,#065f46); border-radius:6px;">
-                    <!-- Bear zone marker -->
-                    <div style="position:absolute; top:0; bottom:0; left:0;
-                        width:{{ ((engine.bear_threshold + 1) / 2 * 100)|round|int }}%;
-                        background:rgba(239,68,68,0.25); border-right:2px solid #ef4444; border-radius:6px 0 0 6px;">
-                    </div>
-                    <!-- Bull zone marker -->
-                    <div style="position:absolute; top:0; bottom:0; right:0;
-                        width:{{ ((1 - (engine.bull_threshold + 1) / 2) * 100)|round|int }}%;
-                        background:rgba(16,185,129,0.25); border-left:2px solid #10b981; border-radius:0 6px 6px 0;">
-                    </div>
-                    <!-- Labels -->
-                    <div style="position:absolute; left:{{ ((engine.bear_threshold + 1) / 2 * 100)|round|int / 2 }}%; top:50%; transform:translate(-50%,-50%); font-size:.65rem; font-weight:700; color:white;">
-                        Bearish
-                    </div>
-                    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:.65rem; font-weight:700; color:white;">
-                        Neutral
-                    </div>
-                    <div style="position:absolute; right:{{ ((1 - (engine.bull_threshold + 1) / 2) * 100)|round|int / 2 }}%; top:50%; transform:translate(50%,-50%); font-size:.65rem; font-weight:700; color:white;">
-                        Bullish
-                    </div>
+                <div id="preview-bar" style="position:relative; height:28px; background:linear-gradient(to right,#7f1d1d,#dc2626,#f59e0b,#10b981,#065f46); border-radius:7px; overflow:hidden;">
+                    <div id="preview-bear-zone" style="position:absolute; top:0; bottom:0; left:0; background:rgba(239,68,68,0.3); border-right:2px solid #ef4444;"></div>
+                    <div id="preview-bull-zone" style="position:absolute; top:0; bottom:0; right:0; background:rgba(16,185,129,0.3); border-left:2px solid #10b981;"></div>
+                    <div id="preview-label-bear" style="position:absolute; top:50%; transform:translateY(-50%); font-size:.65rem; font-weight:700; color:white; pointer-events:none;"></div>
+                    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:.65rem; font-weight:700; color:white;">Neutral</div>
+                    <div id="preview-label-bull" style="position:absolute; top:50%; transform:translateY(-50%); font-size:.65rem; font-weight:700; color:white; pointer-events:none;"></div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:.65rem; color:var(--muted); margin-top:3px;">
+                <div id="preview-scale" style="display:flex; justify-content:space-between; font-size:.65rem; color:var(--muted); margin-top:3px;">
                     <span>−1.0</span>
-                    <span style="color:var(--red);">{{ engine.bear_threshold }}</span>
+                    <span id="preview-bear-val" style="color:var(--red);"></span>
                     <span>0</span>
-                    <span style="color:var(--green);">+{{ engine.bull_threshold }}</span>
+                    <span id="preview-bull-val" style="color:var(--green);"></span>
                     <span>+1.0</span>
                 </div>
             </div>
@@ -349,6 +371,49 @@
 
 {% block scripts %}
 <script>
+// ── Profile activation ────────────────────────────────────────────
+async function activateProfile(key) {
+    await fetch('/api/engine/profile/' + key, { method: 'POST' });
+    location.reload();
+}
+
+// ── Live preview bar ──────────────────────────────────────────────
+function updatePreview() {
+    const bull = parseFloat(document.getElementById('inp-bull').value)  || 0.35;
+    const bear = parseFloat(document.getElementById('inp-bear').value)  || -0.35;
+    const bearPct = ((bear + 1) / 2 * 100).toFixed(1);
+    const bullPct = ((1 - (bull + 1) / 2) * 100).toFixed(1);
+
+    document.getElementById('preview-bear-zone').style.width = bearPct + '%';
+    document.getElementById('preview-bull-zone').style.width = bullPct + '%';
+
+    const bearLabel = document.getElementById('preview-label-bear');
+    bearLabel.style.left      = (parseFloat(bearPct) / 2) + '%';
+    bearLabel.style.transform = 'translate(-50%, -50%)';
+    bearLabel.textContent     = 'Bearish';
+
+    const bullLabel = document.getElementById('preview-label-bull');
+    bullLabel.style.right     = (parseFloat(bullPct) / 2) + '%';
+    bullLabel.style.transform = 'translate(50%, -50%)';
+    bullLabel.textContent     = 'Bullish';
+
+    document.getElementById('preview-bear-val').textContent = bear.toFixed(2);
+    document.getElementById('preview-bull-val').textContent = '+' + bull.toFixed(2);
+}
+updatePreview();
+
+// ── Profile card hover ────────────────────────────────────────────
+document.querySelectorAll('.profile-card').forEach(card => {
+    card.addEventListener('mouseenter', () => {
+        if (!card.classList.contains('profile-active'))
+            card.style.borderColor = 'var(--muted)';
+    });
+    card.addEventListener('mouseleave', () => {
+        if (!card.classList.contains('profile-active'))
+            card.style.borderColor = 'var(--border)';
+    });
+});
+
 // ── Edit modal ────────────────────────────────────────────────────
 function openEdit(id, name, url, weight, interval) {
     document.getElementById('edit-form').action    = '/api/feeds/'+id+'/update';
@@ -369,23 +434,14 @@ document.querySelectorAll('.has-tip').forEach(el => {
     el.style.cursor = 'help';
     el.style.borderBottom = '1px dashed var(--muted)';
     el.style.display = 'inline';
-
-    el.addEventListener('mouseenter', e => {
-        tooltip.textContent = el.dataset.tip;
-        tooltip.style.display = 'block';
-    });
+    el.addEventListener('mouseenter', () => { tooltip.textContent = el.dataset.tip; tooltip.style.display = 'block'; });
     el.addEventListener('mousemove', e => {
-        const x = e.clientX + 14;
-        const y = e.clientY + 14;
-        tooltip.style.left = Math.min(x, window.innerWidth - 280) + 'px';
-        tooltip.style.top  = y + 'px';
+        tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 280) + 'px';
+        tooltip.style.top  = (e.clientY + 14) + 'px';
     });
-    el.addEventListener('mouseleave', () => {
-        tooltip.style.display = 'none';
-    });
+    el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 });
 
-// Auto-refresh last-polled times every 15 s
 setInterval(() => location.reload(), 30000);
 </script>
 {% endblock %}

@@ -7,7 +7,13 @@
 
     <!-- Score Panel -->
     <div class="card" style="padding:24px;">
-        <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">Aggregate Market Score</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">Aggregate Market Score</div>
+            <span id="active-profile-badge" style="font-size:.68rem; font-weight:600; background:rgba(59,130,246,.12); color:var(--blue); padding:2px 9px; border-radius:8px; cursor:pointer;"
+                  onclick="window.location='/settings'" title="Click to change profile">
+                ⚙️ —
+            </span>
+        </div>
 
         <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:6px;">
             <span id="score-value" style="font-size:3rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1;
@@ -292,10 +298,21 @@ async function refreshScore() {
         document.getElementById('score-dir').style.color   = colors[d.direction];
         document.getElementById('score-meta').textContent  = d.news_count + ' headlines · last ' + d.window_minutes + ' min';
         document.getElementById('gauge-thumb').style.left  = ((d.score + 1) / 2 * 100).toFixed(1) + '%';
-        // Update live threshold labels
         if (d.bull_threshold !== undefined) {
             document.getElementById('bull-thresh').textContent = '+' + d.bull_threshold.toFixed(2);
             document.getElementById('bear-thresh').textContent = d.bear_threshold.toFixed(2);
+        }
+        // Profile badge
+        const profileLabels = {
+            'default':   '📊 Default',
+            '0dte':      '⚡ 0DTE SPX/SPY',
+            'swing':     '📈 Swing',
+            'event_day': '🔥 Event Day',
+            'custom':    '✏️ Custom',
+        };
+        const badge = document.getElementById('active-profile-badge');
+        if (badge && d.active_profile) {
+            badge.textContent = profileLabels[d.active_profile] || ('⚙️ ' + d.active_profile);
         }
     } catch(e) {}
 }
