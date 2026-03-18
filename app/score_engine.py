@@ -1,5 +1,6 @@
 """
 Score Engine - works with plain dicts (JSON storage)
+Thresholds and window are read from settings.json at runtime.
 """
 from datetime import datetime, timedelta
 from typing import List, Dict
@@ -28,7 +29,7 @@ RELEVANCE_KEYWORDS = {
     ],
 }
 
-RELEVANCE_THRESHOLD = 0.3
+RELEVANCE_THRESHOLD = 0.3   # fallback default only
 
 
 def compute_relevance(text: str) -> float:
@@ -54,11 +55,23 @@ def _recency_weight(created_at_str: str, window_minutes: int) -> float:
     return max(0.05, 1.0 - (age_minutes / window_minutes) * 0.95)
 
 
-def compute_aggregate_score(news_items: List[Dict], window_minutes: int = 10) -> Dict:
+def compute_aggregate_score(news_items: List[Dict], window_minutes: int = None) -> Dict:
+    # Pull live settings — import here to avoid circular imports
+    from .storage import get_engine_settings
+    cfg = get_engine_settings()
+
+    if window_minutes is None:
+        window_minutes = cfg["window_minutes"]
+
+    bull_threshold = cfg["bull_threshold"]
+    bear_threshold = cfg["bear_threshold"]
+    rel_threshold  = cfg["relevance_threshold"]
+
     cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
     relevant = [
         n for n in news_items
         if n.get("analyzed") and n.get("is_relevant")
+        and n.get("relevance", 0) >= rel_threshold
         and datetime.fromisoformat(n["created_at"]) >= cutoff
     ]
     if not relevant:
@@ -76,11 +89,19 @@ def compute_aggregate_score(news_items: List[Dict], window_minutes: int = 10) ->
 
     raw   = weighted_sum / total_weight if total_weight else 0.0
     score = max(-1.0, min(1.0, round(raw, 4)))
-    if score >= 0.35:
+
+    if score >= bull_threshold:
         direction = "bullish"
-    elif score <= -0.35:
+    elif score <= bear_threshold:
         direction = "bearish"
     else:
         direction = "neutral"
 
-    return {"score": score, "direction": direction, "news_count": len(relevant), "window_minutes": window_minutes}
+    return {
+        "score":         score,
+        "direction":     direction,
+        "news_count":    len(relevant),
+        "window_minutes": window_minutes,
+        "bull_threshold": bull_threshold,
+        "bear_threshold": bear_threshold,
+    }

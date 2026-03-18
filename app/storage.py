@@ -20,14 +20,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 FEEDS_FILE         = DATA_DIR / "feeds.json"
 NEWS_FILE          = DATA_DIR / "news.json"
 SCORE_HISTORY_FILE = DATA_DIR / "score_history.json"
+SETTINGS_FILE      = DATA_DIR / "settings.json"
 
 MAX_NEWS    = 2000
 MAX_HISTORY = 5000
 
 _locks: Dict[str, threading.Lock] = {
-    "feeds":   threading.Lock(),
-    "news":    threading.Lock(),
-    "history": threading.Lock(),
+    "feeds":    threading.Lock(),
+    "news":     threading.Lock(),
+    "history":  threading.Lock(),
+    "settings": threading.Lock(),
 }
 
 def _read(path: Path) -> Any:
@@ -206,6 +208,43 @@ def get_score_history(hours: int = 2) -> List[Dict]:
         h for h in history
         if datetime.fromisoformat(h["timestamp"]).timestamp() >= cutoff
     ]
+
+# ---------------------------------------------------------------------------
+# Engine Settings
+# ---------------------------------------------------------------------------
+ENGINE_SETTINGS_DEFAULTS = {
+    "bull_threshold":    0.35,   # score >= this → bullish
+    "bear_threshold":   -0.35,   # score <= this → bearish
+    "window_minutes":   10,      # rolling aggregation window
+    "relevance_threshold": 0.30, # min relevance to include in aggregate
+}
+
+
+def get_engine_settings() -> Dict:
+    with _locks["settings"]:
+        data = _read(SETTINGS_FILE) if SETTINGS_FILE.exists() else {}
+    if not isinstance(data, dict):
+        data = {}
+    # Merge with defaults so new keys always exist
+    return {**ENGINE_SETTINGS_DEFAULTS, **data}
+
+
+def save_engine_settings(
+    bull_threshold: float,
+    bear_threshold: float,
+    window_minutes: int,
+    relevance_threshold: float,
+) -> Dict:
+    settings = {
+        "bull_threshold":     round(min(max(bull_threshold,   0.05), 0.95), 2),
+        "bear_threshold":     round(max(min(bear_threshold,  -0.05), -0.95), 2),
+        "window_minutes":     max(1, min(int(window_minutes), 120)),
+        "relevance_threshold": round(min(max(relevance_threshold, 0.05), 0.95), 2),
+    }
+    with _locks["settings"]:
+        _write(SETTINGS_FILE, settings)
+    return settings
+
 
 # ---------------------------------------------------------------------------
 # Seed defaults

@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from .storage import (
     seed_defaults, get_feeds, add_feed, update_feed, toggle_feed, delete_feed,
     get_news, get_analyzed_news, get_score_history, get_stats,
+    get_engine_settings, save_engine_settings,
 )
 from .sentiment import load_model, get_status as model_status, analyze_sentiment, is_model_ready
 from .score_engine import compute_aggregate_score, compute_relevance, RELEVANCE_THRESHOLD
@@ -77,7 +78,30 @@ async def settings(request: Request):
         "feeds":       get_feeds(),
         "stats":       get_stats(),
         "model":       model_status(),
+        "engine":      get_engine_settings(),
     })
+
+
+# ── Engine Settings API ───────────────────────────────────────────
+@app.post("/api/engine/settings")
+async def api_save_engine_settings(
+    bull_threshold:      float = Form(...),
+    bear_threshold:      float = Form(...),
+    window_minutes:      int   = Form(...),
+    relevance_threshold: float = Form(...),
+):
+    save_engine_settings(
+        bull_threshold=bull_threshold,
+        bear_threshold=bear_threshold,
+        window_minutes=window_minutes,
+        relevance_threshold=relevance_threshold,
+    )
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@app.get("/api/engine/settings")
+async def api_get_engine_settings():
+    return get_engine_settings()
 
 
 # ── JSON API ──────────────────────────────────────────────────────
