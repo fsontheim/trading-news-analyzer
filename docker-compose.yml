@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  trading-news-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-news-analyzer
+    ports:
+      - "8003:8003"
+    volumes:
+      # SQLite database – persisted on host
+      - ./data:/app/data
+      # HuggingFace model cache – avoids re-downloading FinBERT on restart
+      - hf_model_cache:/root/.cache/huggingface
+    environment:
+      - DATABASE_URL=sqlite:////app/data/trading_news.db
+      - HF_HOME=/root/.cache/huggingface
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  hf_model_cache:
+    driver: local
