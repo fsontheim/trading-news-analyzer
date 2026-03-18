@@ -2,20 +2,17 @@
 {% block title %}Dashboard – Trading News AI{% endblock %}
 
 {% block content %}
-<!-- ── Top row: Score + Chart ──────────────────────────────────── -->
+<!-- ── Top row ──────────────────────────────────────────────────── -->
 <div style="display:grid; grid-template-columns:340px 1fr; gap:16px; margin-bottom:16px;">
 
     <!-- Score Panel -->
     <div class="card" style="padding:24px;">
-        <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">
-            Aggregate Market Score
-        </div>
+        <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">Aggregate Market Score</div>
 
-        <!-- Big Score Number -->
-        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:6px;">
             <span id="score-value" style="font-size:3rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1;
                 color:{% if score.direction=='bullish' %}var(--green){% elif score.direction=='bearish' %}var(--red){% else %}var(--muted){% endif %};">
-                {{ "%.3f" | format(score.score) }}
+                {{ "%+.3f" | format(score.score) }}
             </span>
             <span id="score-dir" style="font-size:0.9rem; font-weight:600;
                 color:{% if score.direction=='bullish' %}var(--green){% elif score.direction=='bearish' %}var(--red){% else %}var(--muted){% endif %};">
@@ -23,76 +20,144 @@
             </span>
         </div>
 
-        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:20px;">
+        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:18px;">
             <span id="score-meta">{{ score.news_count }} headlines · last {{ score.window_minutes }} min</span>
         </div>
 
-        <!-- Gauge Bar -->
         <div style="margin-bottom:6px;">
             <div class="gauge-track" id="gauge-track">
-                <div class="gauge-thumb" id="gauge-thumb" style="left: {{ ((score.score + 1) / 2 * 100) | int }}%;"></div>
+                <div class="gauge-thumb" id="gauge-thumb" style="left:{{ ((score.score + 1) / 2 * 100)|int }}%;"></div>
             </div>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--muted); margin-top:4px;">
+        <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--muted); margin-top:5px;">
             <span>−1 Bearish</span><span>0 Neutral</span><span>Bullish +1</span>
         </div>
 
-        <!-- Scale legend -->
-        <div style="margin-top:20px; display:flex; flex-direction:column; gap:5px;">
+        <div style="margin-top:18px; display:flex; flex-direction:column; gap:5px;">
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--green);">▲ &gt; 0.35</span><span style="color:var(--muted);">Bullish bias</span>
+                <span style="color:var(--green);">▲ ≥ +0.35</span><span style="color:var(--muted);">Bullish</span>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--muted);">● −0.35 to 0.35</span><span style="color:var(--muted);">Neutral</span>
+                <span style="color:var(--muted);">● −0.35 … +0.35</span><span style="color:var(--muted);">Neutral</span>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--red);">▼ &lt; −0.35</span><span style="color:var(--muted);">Bearish bias</span>
+                <span style="color:var(--red);">▼ ≤ −0.35</span><span style="color:var(--muted);">Bearish</span>
             </div>
         </div>
 
-        <!-- Refresh button -->
-        <button onclick="triggerRefresh()" class="btn btn-ghost" style="width:100%; margin-top:20px; font-size:0.75rem;">
+        <button onclick="triggerRefresh()" class="btn btn-ghost" style="width:100%; margin-top:18px; font-size:0.75rem;">
             ↺ Refresh Feeds Now
         </button>
     </div>
 
     <!-- Chart Panel -->
     <div class="card" style="padding:20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <span style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">Score History</span>
-            <div style="display:flex; gap:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">Score History</span>
+            <div style="display:flex; gap:6px;">
                 <button onclick="loadChart(1)"  class="btn btn-ghost" id="btn-1h"  style="font-size:0.7rem; padding:3px 10px;">1h</button>
                 <button onclick="loadChart(2)"  class="btn btn-ghost" id="btn-2h"  style="font-size:0.7rem; padding:3px 10px;">2h</button>
                 <button onclick="loadChart(6)"  class="btn btn-ghost" id="btn-6h"  style="font-size:0.7rem; padding:3px 10px;">6h</button>
                 <button onclick="loadChart(24)" class="btn btn-ghost" id="btn-24h" style="font-size:0.7rem; padding:3px 10px;">24h</button>
             </div>
         </div>
-        <div style="position:relative; height:180px;">
+        <div style="position:relative; height:185px;">
             <canvas id="scoreChart"></canvas>
         </div>
         <div id="chart-empty" style="display:none; text-align:center; color:var(--muted); font-size:0.8rem; padding:40px 0;">
-            Score history will appear after ~1 minute of running
+            Score history appears after ~1 min of running
         </div>
     </div>
 </div>
 
+<!-- ── Test Analyzer ─────────────────────────────────────────────── -->
+<div class="card" style="padding:20px; margin-bottom:16px;">
+    <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">
+        🧪 Test Analyzer — Analyze any headline manually
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:flex-start;">
+        <textarea id="test-input" rows="2"
+            placeholder="Enter a headline to analyze… e.g. 'Fed signals rate cuts this year'"
+            style="flex:1; resize:vertical; min-height:58px;"></textarea>
+        <button onclick="analyzeText()" class="btn btn-primary" id="analyze-btn" style="white-space:nowrap; height:58px; min-width:110px;">
+            ▶ Analyze
+        </button>
+    </div>
+
+    <!-- Result -->
+    <div id="analyze-result" style="display:none; margin-top:14px; padding:14px 16px; background:var(--bg-row); border:1px solid var(--border); border-radius:8px;">
+        <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+
+            <!-- Score -->
+            <div style="text-align:center; min-width:80px;">
+                <div style="font-size:0.65rem; color:var(--muted); margin-bottom:3px;">SCORE</div>
+                <div id="res-score" style="font-size:1.8rem; font-weight:800; font-variant-numeric:tabular-nums;"></div>
+                <div id="res-dir"   style="font-size:0.75rem; font-weight:600; margin-top:2px;"></div>
+            </div>
+
+            <!-- Sentiment bars -->
+            <div style="flex:1; min-width:180px;">
+                <div style="font-size:0.65rem; color:var(--muted); margin-bottom:8px;">SENTIMENT BREAKDOWN</div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem;">
+                        <span style="color:var(--green); width:52px;">Positive</span>
+                        <div style="flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+                            <div id="bar-pos" style="height:100%; background:var(--green); border-radius:4px; transition:width .4s;"></div>
+                        </div>
+                        <span id="val-pos" style="width:38px; text-align:right; color:var(--green); font-weight:600;"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem;">
+                        <span style="color:var(--muted); width:52px;">Neutral</span>
+                        <div style="flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+                            <div id="bar-neu" style="height:100%; background:var(--muted); border-radius:4px; transition:width .4s;"></div>
+                        </div>
+                        <span id="val-neu" style="width:38px; text-align:right; color:var(--muted); font-weight:600;"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem;">
+                        <span style="color:var(--red); width:52px;">Negative</span>
+                        <div style="flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+                            <div id="bar-neg" style="height:100%; background:var(--red); border-radius:4px; transition:width .4s;"></div>
+                        </div>
+                        <span id="val-neg" style="width:38px; text-align:right; color:var(--red); font-weight:600;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relevance -->
+            <div style="text-align:center; min-width:80px;">
+                <div style="font-size:0.65rem; color:var(--muted); margin-bottom:3px;">RELEVANCE</div>
+                <div id="res-rel"     style="font-size:1.4rem; font-weight:700; color:var(--blue);"></div>
+                <div id="res-rel-tag" style="font-size:0.7rem; color:var(--muted); margin-top:2px;"></div>
+            </div>
+
+            <!-- Analyzed text -->
+            <div style="flex:2; min-width:200px; font-size:0.8rem; color:var(--text-sub); font-style:italic; border-left:2px solid var(--border); padding-left:14px;">
+                <div style="font-size:0.65rem; color:var(--muted); margin-bottom:4px; font-style:normal;">INPUT</div>
+                <span id="res-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="analyze-error" style="display:none; margin-top:10px; font-size:0.8rem; color:var(--red); padding:8px 12px; background:rgba(239,68,68,.08); border-radius:6px;"></div>
+</div>
+
 <!-- ── News Table ──────────────────────────────────────────────── -->
 <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border);">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">News Log</span>
-            <span id="news-count-badge" style="background:rgba(59,130,246,.15); color:#60a5fa; font-size:0.68rem; font-weight:600; padding:2px 8px; border-radius:10px;">— items</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">News Log</span>
+            <span id="news-count-badge" style="background:rgba(59,130,246,.12); color:var(--blue); font-size:0.68rem; font-weight:600; padding:2px 8px; border-radius:10px;">— items</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px; font-size:0.72rem; color:var(--muted);">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="filter-relevant" onchange="filterTable()" checked style="accent-color:var(--blue);">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" id="filter-relevant" onchange="refreshNews()" checked style="accent-color:var(--blue);">
                 Relevant only
             </label>
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="filter-analyzed" onchange="filterTable()">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" id="filter-analyzed" onchange="refreshNews()">
                 Analyzed only
             </label>
-            <span id="auto-refresh-indicator" style="color:#374151;">⟳ auto-refresh</span>
         </div>
     </div>
 
@@ -102,79 +167,64 @@
                 <tr>
                     <th style="width:65px;">Time</th>
                     <th>Headline</th>
-                    <th style="width:90px;">Source</th>
+                    <th style="width:100px;">Source</th>
                     <th style="width:80px;">Relevance</th>
                     <th style="width:130px;">Sentiment</th>
-                    <th style="width:75px; text-align:right;">Score</th>
+                    <th style="width:78px; text-align:right;">Score</th>
                 </tr>
             </thead>
             <tbody id="news-tbody">
                 {% for item in news %}
-                <tr data-relevant="{{ item.is_relevant|lower }}" data-analyzed="{{ item.analyzed|lower }}"
-                    style="{% if not item.is_relevant %}opacity:0.45;{% endif %}">
-
-                    <td style="color:var(--muted); white-space:nowrap; font-size:0.72rem;">
-                        {{ rel_time(item.created_at) }}
-                    </td>
-
+                {% set sc = item.raw_score %}
+                <tr style="{% if not item.is_relevant %}opacity:.4;{% endif %}">
+                    <td style="color:var(--muted); white-space:nowrap; font-size:.72rem;">{{ rel_time(item.created_at) }}</td>
                     <td>
                         <a href="{{ item.url }}" target="_blank" rel="noopener"
-                           style="color:var(--text); text-decoration:none;"
-                           title="{{ item.title }}">
+                           style="color:var(--text); text-decoration:none;" title="{{ item.title }}">
                             {{ item.title[:110] }}{% if item.title|length > 110 %}…{% endif %}
                         </a>
                     </td>
-
                     <td>
-                        <span style="background:rgba(59,130,246,.12); color:#60a5fa; font-size:0.68rem; padding:2px 7px; border-radius:4px;">
-                            {{ item.feed.name if item.feed else '—' }}
+                        <span style="background:rgba(59,130,246,.1); color:var(--blue); font-size:.68rem; padding:2px 7px; border-radius:4px;">
+                            {{ item.feed_name or '—' }}
                         </span>
                     </td>
-
                     <td>
                         {% if item.is_relevant %}
                         <div style="display:flex; align-items:center; gap:5px;">
                             <div class="rel-bar"><div class="rel-fill" style="width:{{ (item.relevance*100)|int }}%;"></div></div>
-                            <span style="font-size:0.68rem; color:var(--muted);">{{ "%.0f" | format(item.relevance*100) }}%</span>
+                            <span style="font-size:.68rem; color:var(--muted);">{{ "%.0f"|format(item.relevance*100) }}%</span>
                         </div>
                         {% else %}
-                        <span style="font-size:0.68rem; color:#374151;">filtered</span>
+                        <span style="font-size:.68rem; color:var(--muted);">filtered</span>
                         {% endif %}
                     </td>
-
                     <td>
                         {% if item.analyzed %}
                         <div class="sent-bar">
-                            <div class="sent-seg" title="Positive {{ '%.0f'|format(item.positive*100) }}%"
-                                 style="width:{{ (item.positive*60)|int }}px; background:var(--green);"></div>
-                            <div class="sent-seg" title="Neutral {{ '%.0f'|format(item.neutral*100) }}%"
-                                 style="width:{{ (item.neutral*60)|int }}px; background:#334155;"></div>
-                            <div class="sent-seg" title="Negative {{ '%.0f'|format(item.negative*100) }}%"
-                                 style="width:{{ (item.negative*60)|int }}px; background:var(--red);"></div>
+                            <div class="sent-seg" style="width:{{ (item.positive*60)|int }}px; background:var(--green);" title="Pos {{ '%.0f'|format(item.positive*100) }}%"></div>
+                            <div class="sent-seg" style="width:{{ (item.neutral*60)|int }}px;  background:var(--muted);"  title="Neu {{ '%.0f'|format(item.neutral*100) }}%"></div>
+                            <div class="sent-seg" style="width:{{ (item.negative*60)|int }}px; background:var(--red);"   title="Neg {{ '%.0f'|format(item.negative*100) }}%"></div>
                         </div>
                         {% elif item.is_relevant %}
-                        <span style="font-size:0.68rem; color:var(--yellow);">⏳ pending</span>
+                        <span style="font-size:.68rem; color:var(--yellow);">⏳ pending</span>
                         {% else %}
-                        <span style="font-size:0.68rem; color:#374151;">—</span>
+                        <span style="font-size:.68rem; color:var(--muted);">—</span>
                         {% endif %}
                     </td>
-
                     <td style="text-align:right;">
                         {% if item.analyzed %}
-                            {% set sc = item.raw_score %}
-                            <span class="score-badge {% if sc >= 0.35 %}score-bull{% elif sc <= -0.35 %}score-bear{% else %}score-neut{% endif %}">
-                                {{ "%+.3f" | format(sc) }}
-                            </span>
-                        {% elif item.is_relevant %}
-                        <span style="font-size:0.68rem; color:#374151;">—</span>
+                        <span class="score-badge {% if sc >= 0.35 %}score-bull{% elif sc <= -0.35 %}score-bear{% else %}score-neut{% endif %}">
+                            {{ "%+.3f"|format(sc) }}
+                        </span>
                         {% else %}
-                        <span style="font-size:0.68rem; color:#374151;">—</span>
+                        <span style="font-size:.68rem; color:var(--muted);">—</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:40px;">
-                    No news yet — feeds will be polled every 30 seconds.
+                    No news yet — feeds poll every 30 s
                 </td></tr>
                 {% endfor %}
             </tbody>
@@ -185,118 +235,95 @@
 
 {% block scripts %}
 <script>
-// ── Chart setup ───────────────────────────────────────────────────
+// ── Chart ─────────────────────────────────────────────────────────
 const ctx = document.getElementById('scoreChart').getContext('2d');
-Chart.defaults.color = '#64748b';
+Chart.defaults.color    = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
 Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
-Chart.defaults.font.size = 10;
+Chart.defaults.font.size   = 10;
 
 const scoreChart = new Chart(ctx, {
     type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Score',
-            data: [],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.08)',
-            borderWidth: 2,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            fill: true,
-            tension: 0.4,
-        }]
-    },
+    data: { labels: [], datasets: [{
+        label: 'Score', data: [],
+        borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)',
+        borderWidth: 2, pointRadius: 2, pointHoverRadius: 4, fill: true, tension: 0.4,
+    }]},
     options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 400 },
+        responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
         scales: {
-            x: { grid:{ color:'#1e2a3b' }, ticks:{ maxTicksLimit:8, maxRotation:0 } },
-            y: { min:-1, max:1, grid:{ color:'#1e2a3b' },
-                 ticks:{ callback: v => v.toFixed(1) },
-                 afterDataLimits(axis){ axis.min=-1; axis.max=1; } }
+            x: { grid:{ color: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() }, ticks:{ maxTicksLimit:8, maxRotation:0 }},
+            y: { min:-1, max:1, grid:{ color: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() }, ticks:{ callback: v => v.toFixed(1) }}
         },
-        plugins: {
-            legend: { display: false },
-            tooltip: { callbacks:{ label: c => ' Score: ' + c.parsed.y.toFixed(3) } }
-        }
+        plugins: { legend:{display:false}, tooltip:{callbacks:{label: c => ' Score: '+c.parsed.y.toFixed(3)}} }
     }
 });
 
 async function loadChart(hours) {
     ['1h','2h','6h','24h'].forEach(id => document.getElementById('btn-'+id).style.color='var(--muted)');
-    document.getElementById('btn-'+hours+'h').style.color='var(--text)';
+    document.getElementById('btn-'+hours+'h').style.color = 'var(--text)';
     try {
-        const r = await fetch('/api/score/history?hours='+hours);
-        const data = await r.json();
+        const data  = await (await fetch('/api/score/history?hours='+hours)).json();
         const empty = document.getElementById('chart-empty');
         if (!data.length) { empty.style.display='block'; return; }
-        empty.style.display='none';
+        empty.style.display = 'none';
         scoreChart.data.labels = data.map(d => d.timestamp.slice(11,16));
         scoreChart.data.datasets[0].data = data.map(d => d.score);
         scoreChart.update();
-    } catch(e) { console.error(e); }
+    } catch(e) {}
 }
 loadChart(2);
 
-// ── Score & news refresh ──────────────────────────────────────────
+// ── Score refresh ─────────────────────────────────────────────────
 async function refreshScore() {
     try {
-        const r = await fetch('/api/score');
-        const d = await r.json();
+        const d = await (await fetch('/api/score')).json();
+        const colors = {bullish:'var(--green)', bearish:'var(--red)', neutral:'var(--muted)'};
+        const arrows = {bullish:'▲ Bullish',    bearish:'▼ Bearish',  neutral:'● Neutral'};
         document.getElementById('score-value').textContent = (d.score >= 0 ? '+' : '') + d.score.toFixed(3);
-        const colors = { bullish:'var(--green)', bearish:'var(--red)', neutral:'var(--muted)' };
-        const arrows = { bullish:'▲ Bullish', bearish:'▼ Bearish', neutral:'● Neutral' };
         document.getElementById('score-value').style.color = colors[d.direction];
-        document.getElementById('score-dir').textContent  = arrows[d.direction];
-        document.getElementById('score-dir').style.color  = colors[d.direction];
-        document.getElementById('score-meta').textContent = d.news_count + ' headlines · last ' + d.window_minutes + ' min';
-        // Gauge
-        const pct = ((d.score + 1) / 2 * 100).toFixed(1);
-        document.getElementById('gauge-thumb').style.left = pct + '%';
+        document.getElementById('score-dir').textContent   = arrows[d.direction];
+        document.getElementById('score-dir').style.color   = colors[d.direction];
+        document.getElementById('score-meta').textContent  = d.news_count + ' headlines · last ' + d.window_minutes + ' min';
+        document.getElementById('gauge-thumb').style.left  = ((d.score + 1) / 2 * 100).toFixed(1) + '%';
     } catch(e) {}
 }
 
+// ── News refresh ──────────────────────────────────────────────────
 async function refreshNews() {
     try {
-        const r = await fetch('/api/news?limit=100');
-        const items = await r.json();
-        const onlyRelevant  = document.getElementById('filter-relevant').checked;
-        const onlyAnalyzed  = document.getElementById('filter-analyzed').checked;
-        const tbody = document.getElementById('news-tbody');
-        const badge = document.getElementById('news-count-badge');
+        const items       = await (await fetch('/api/news?limit=100')).json();
+        const onlyRel     = document.getElementById('filter-relevant').checked;
+        const onlyAna     = document.getElementById('filter-analyzed').checked;
+        const tbody       = document.getElementById('news-tbody');
+        let shown = 0, html = '';
 
-        let shown = 0;
-        let html  = '';
         for (const n of items) {
-            if (onlyRelevant && !n.is_relevant) continue;
-            if (onlyAnalyzed && !n.analyzed)   continue;
+            if (onlyRel && !n.is_relevant) continue;
+            if (onlyAna && !n.analyzed)   continue;
             shown++;
-
-            const scoreClass = n.raw_score >= 0.35 ? 'score-bull' : n.raw_score <= -0.35 ? 'score-bear' : 'score-neut';
-            const sentHtml   = n.analyzed
+            const sc = n.raw_score;
+            const scClass  = sc >= 0.35 ? 'score-bull' : sc <= -0.35 ? 'score-bear' : 'score-neut';
+            const sentHtml = n.analyzed
                 ? `<div class="sent-bar">
-                      <div class="sent-seg" style="width:${Math.round(n.positive*60)}px;background:var(--green);" title="Pos ${(n.positive*100).toFixed(0)}%"></div>
-                      <div class="sent-seg" style="width:${Math.round(n.neutral*60)}px;background:#334155;" title="Neu ${(n.neutral*100).toFixed(0)}%"></div>
-                      <div class="sent-seg" style="width:${Math.round(n.negative*60)}px;background:var(--red);"   title="Neg ${(n.negative*100).toFixed(0)}%"></div>
+                     <div class="sent-seg" style="width:${Math.round(n.positive*60)}px;background:var(--green);" title="Pos ${(n.positive*100).toFixed(0)}%"></div>
+                     <div class="sent-seg" style="width:${Math.round(n.neutral*60)}px;background:var(--muted);"  title="Neu ${(n.neutral*100).toFixed(0)}%"></div>
+                     <div class="sent-seg" style="width:${Math.round(n.negative*60)}px;background:var(--red);"   title="Neg ${(n.negative*100).toFixed(0)}%"></div>
                    </div>`
                 : n.is_relevant ? '<span style="font-size:.68rem;color:var(--yellow);">⏳ pending</span>'
-                                : '<span style="font-size:.68rem;color:#374151;">—</span>';
-            const scoreHtml  = n.analyzed
-                ? `<span class="score-badge ${scoreClass}">${(n.raw_score>=0?'+':'')}${n.raw_score.toFixed(3)}</span>`
-                : '<span style="font-size:.68rem;color:#374151;">—</span>';
-            const relPct = Math.round(n.relevance * 100);
+                                : '<span style="font-size:.68rem;color:var(--muted);">—</span>';
+            const scoreHtml = n.analyzed
+                ? `<span class="score-badge ${scClass}">${sc>=0?'+':''}${sc.toFixed(3)}</span>`
+                : '<span style="font-size:.68rem;color:var(--muted);">—</span>';
+            const relPct  = Math.round(n.relevance * 100);
             const relHtml = n.is_relevant
                 ? `<div style="display:flex;align-items:center;gap:5px;"><div class="rel-bar"><div class="rel-fill" style="width:${relPct}%;"></div></div><span style="font-size:.68rem;color:var(--muted);">${relPct}%</span></div>`
-                : '<span style="font-size:.68rem;color:#374151;">filtered</span>';
-            const title   = n.title.length > 110 ? n.title.slice(0,110) + '…' : n.title;
-            const opacity = n.is_relevant ? '' : 'opacity:.45;';
-
+                : '<span style="font-size:.68rem;color:var(--muted);">filtered</span>';
+            const title   = n.title.length > 110 ? n.title.slice(0,110)+'…' : n.title;
+            const opacity = n.is_relevant ? '' : 'opacity:.4;';
             html += `<tr style="${opacity}">
                 <td style="color:var(--muted);white-space:nowrap;font-size:.72rem;">${n.age}</td>
                 <td><a href="${n.url}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;" title="${n.title.replace(/"/g,'&quot;')}">${title}</a></td>
-                <td><span style="background:rgba(59,130,246,.12);color:#60a5fa;font-size:.68rem;padding:2px 7px;border-radius:4px;">${n.feed}</span></td>
+                <td><span style="background:rgba(59,130,246,.1);color:var(--blue);font-size:.68rem;padding:2px 7px;border-radius:4px;">${n.feed}</span></td>
                 <td>${relHtml}</td>
                 <td>${sentHtml}</td>
                 <td style="text-align:right;">${scoreHtml}</td>
@@ -304,21 +331,82 @@ async function refreshNews() {
         }
         if (!html) html = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px;">No items match current filters.</td></tr>`;
         tbody.innerHTML = html;
-        badge.textContent = shown + ' item' + (shown !== 1 ? 's' : '');
-    } catch(e) { console.error(e); }
+        document.getElementById('news-count-badge').textContent = shown + ' item' + (shown!==1?'s':'');
+    } catch(e) {}
 }
 
-function filterTable() { refreshNews(); }
+// ── Test Analyzer ─────────────────────────────────────────────────
+async function analyzeText() {
+    const input = document.getElementById('test-input');
+    const text  = input.value.trim();
+    if (!text) return;
 
+    const btn = document.getElementById('analyze-btn');
+    btn.textContent = '⏳ Analyzing…';
+    btn.disabled    = true;
+    document.getElementById('analyze-result').style.display = 'none';
+    document.getElementById('analyze-error').style.display  = 'none';
+
+    try {
+        const fd = new FormData();
+        fd.append('text', text);
+        const r = await fetch('/api/analyze', { method:'POST', body: fd });
+        const d = await r.json();
+
+        if (d.error) throw new Error(d.error);
+
+        if (!d.model_ready) {
+            document.getElementById('analyze-error').textContent = '⏳ FinBERT is still loading — try again in a moment.';
+            document.getElementById('analyze-error').style.display = 'block';
+            return;
+        }
+
+        const score = d.score;
+        const colors = {bullish:'var(--green)', bearish:'var(--red)', neutral:'var(--muted)'};
+        const arrows = {bullish:'▲ Bullish',    bearish:'▼ Bearish',  neutral:'● Neutral'};
+
+        document.getElementById('res-score').textContent  = (score >= 0 ? '+' : '') + score.toFixed(3);
+        document.getElementById('res-score').style.color  = colors[d.direction];
+        document.getElementById('res-dir').textContent    = arrows[d.direction];
+        document.getElementById('res-dir').style.color    = colors[d.direction];
+
+        document.getElementById('bar-pos').style.width = (d.positive * 100).toFixed(1) + '%';
+        document.getElementById('bar-neu').style.width = (d.neutral  * 100).toFixed(1) + '%';
+        document.getElementById('bar-neg').style.width = (d.negative * 100).toFixed(1) + '%';
+        document.getElementById('val-pos').textContent = (d.positive * 100).toFixed(1) + '%';
+        document.getElementById('val-neu').textContent = (d.neutral  * 100).toFixed(1) + '%';
+        document.getElementById('val-neg').textContent = (d.negative * 100).toFixed(1) + '%';
+
+        const relPct = Math.round(d.relevance * 100);
+        document.getElementById('res-rel').textContent     = relPct + '%';
+        document.getElementById('res-rel-tag').textContent = d.is_relevant ? '✔ relevant' : '✘ filtered';
+        document.getElementById('res-rel-tag').style.color = d.is_relevant ? 'var(--green)' : 'var(--red)';
+
+        document.getElementById('res-text').textContent   = d.text;
+        document.getElementById('analyze-result').style.display = 'block';
+
+    } catch(e) {
+        document.getElementById('analyze-error').textContent = '⚠ ' + e.message;
+        document.getElementById('analyze-error').style.display = 'block';
+    } finally {
+        btn.textContent = '▶ Analyze';
+        btn.disabled    = false;
+    }
+}
+
+// Enter key in textarea
+document.getElementById('test-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyzeText();
+});
+
+// ── Refresh helpers ───────────────────────────────────────────────
 async function triggerRefresh() {
     await fetch('/api/feeds/refresh', { method: 'POST' });
     setTimeout(() => { refreshScore(); refreshNews(); }, 2500);
 }
 
-// Initial load
 refreshScore();
 refreshNews();
-// Auto-refresh
 setInterval(() => { refreshScore(); refreshNews(); loadChart(2); }, 10000);
 </script>
 {% endblock %}
