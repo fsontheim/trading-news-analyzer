@@ -87,7 +87,7 @@
                                     '{{ feed.name|replace("'","\\'") }}',
                                     '{{ feed.url|replace("'","\\'") }}',
                                     {{ feed.weight }},
-                                    {{ feed.poll_interval }}
+                                    {{ feed.poll_interval if feed.poll_interval else 30 }}
                                 )">Edit</button>
                         <form method="post" action="/api/feeds/{{ feed.id }}/delete"
                               onsubmit="return confirm('Delete feed and all its news?')">
