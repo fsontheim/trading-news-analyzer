@@ -284,6 +284,61 @@
                     <span>+1.0</span>
                 </div>
             </div>
+
+            <!-- ── Deduplication ──────────────────────────────── -->
+            <div style="margin-top:14px; padding:16px; background:var(--bg-row); border:1px solid var(--border); border-radius:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:.8rem; font-weight:600; color:var(--text);">
+                            🔁 Cross-Feed Deduplication
+                        </div>
+                        <div style="font-size:.72rem; color:var(--muted); margin-top:2px;">
+                            Detects headlines that are too similar across feeds (fuzzy title matching).
+                            Prevents the same news from inflating the score.
+                        </div>
+                    </div>
+                    <label class="toggle" style="flex-shrink:0; margin-left:20px;" title="Enable or disable fuzzy deduplication">
+                        <input type="checkbox" name="dedup_enabled" value="on"
+                               {% if engine.dedup_enabled %}checked{% endif %}
+                               id="dedup-toggle" onchange="updateDedupUI()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="dedup-sub" style="display:{% if engine.dedup_enabled %}grid{% else %}none{% endif %}; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                            <span class="has-tip" data-tip="How similar two headlines must be to count as duplicates. 80% recommended. Higher = stricter. Lower = more aggressive.">
+                                Similarity Threshold ⓘ
+                            </span>
+                        </label>
+                        <select name="dedup_threshold"
+                            style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
+                            {% for v, lbl in [(0.70,'70% — aggressive'),(0.75,'75%'),(0.80,'80% — recommended'),(0.85,'85%'),(0.90,'90% — strict'),(0.95,'95% — very strict')] %}
+                            <option value="{{ v }}" {% if engine.dedup_threshold == v %}selected{% endif %}>{{ lbl }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                            <span class="has-tip" data-tip="How many recent headlines to compare against. 100 is fine for most setups.">
+                                Comparison Window ⓘ
+                            </span>
+                        </label>
+                        <select name="dedup_window"
+                            style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
+                            {% for v in [25, 50, 100, 200, 500] %}
+                            <option value="{{ v }}" {% if engine.dedup_window == v %}selected{% endif %}>last {{ v }} headlines</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="dedup-off-msg" style="display:{% if engine.dedup_enabled %}none{% else %}block{% endif %}; font-size:.75rem; color:var(--yellow); margin-top:6px;">
+                    ⚠️ Deduplication is off — duplicate headlines from multiple feeds will each be scored separately.
+                </div>
+            </div>
+
         </form>
     </div>
 
@@ -371,6 +426,13 @@
 
 {% block scripts %}
 <script>
+// ── Dedup toggle ──────────────────────────────────────────────────
+function updateDedupUI() {
+    const on  = document.getElementById('dedup-toggle').checked;
+    document.getElementById('dedup-sub').style.display    = on ? 'grid' : 'none';
+    document.getElementById('dedup-off-msg').style.display = on ? 'none' : 'block';
+}
+
 // ── Profile activation ────────────────────────────────────────────
 async function activateProfile(key) {
     await fetch('/api/engine/profile/' + key, { method: 'POST' });

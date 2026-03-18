@@ -185,6 +185,7 @@
                 {% endif %}
             </div>
             <div id="feed-count-badge" style="font-size:0.72rem; color:var(--muted);">— feeds</div>
+            <div id="dedup-badge"      style="font-size:0.72rem; color:var(--green);">🔁 dedup on</div>
             <div id="last-update"      style="font-size:0.72rem; color:var(--muted); opacity:.5;">UTC —</div>
 
             <!-- ☀/🌙 Theme toggle -->
@@ -228,6 +229,13 @@
             else                      badge.innerHTML = '<span class="dot dot-red"></span> Model error';
             const fc = document.getElementById('feed-count-badge');
             if (fc) fc.textContent = d.feeds + ' feed' + (d.feeds !== 1 ? 's' : '');
+            // Dedup indicator
+            const dd = document.getElementById('dedup-badge');
+            if (dd) {
+                dd.textContent  = d.dedup_enabled ? '🔁 dedup on' : '🔁 dedup off';
+                dd.style.color  = d.dedup_enabled ? 'var(--green)' : 'var(--muted)';
+                dd.style.opacity = d.dedup_enabled ? '1' : '0.4';
+            }
             const lu = document.getElementById('last-update');
             if (lu) lu.textContent = 'UTC ' + new Date().toISOString().slice(11,19);
         } catch(e) {}
