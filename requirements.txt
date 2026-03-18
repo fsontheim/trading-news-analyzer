@@ -6,5 +6,4 @@ feedparser==6.0.10
 transformers==4.36.0
 torch==2.1.0
 apscheduler==3.10.4
-sqlalchemy==2.0.23
 aiofiles==23.2.1
