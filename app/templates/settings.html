@@ -145,6 +145,126 @@
         </form>
     </div>
 
+    <!-- Engine Settings -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+        <div style="font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">
+            ⚙️ FinBERT Engine Settings
+        </div>
+        <form method="post" action="/api/engine/settings">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:14px; align-items:end;">
+
+                <!-- Bullish Threshold -->
+                <div>
+                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                        <span class="has-tip" data-tip="Score must be ≥ this value to be classified as Bullish. Lower = more sensitive, higher = more conservative. Range: 0.05 – 0.95">
+                            Bullish Threshold ⓘ
+                        </span>
+                    </label>
+                    <input type="number" name="bull_threshold"
+                           value="{{ engine.bull_threshold }}"
+                           min="0.05" max="0.95" step="0.05"
+                           style="font-weight:600; color:var(--green);">
+                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
+                        score ≥ <strong style="color:var(--green);">{{ engine.bull_threshold }}</strong> → bullish
+                    </div>
+                </div>
+
+                <!-- Bearish Threshold -->
+                <div>
+                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                        <span class="has-tip" data-tip="Score must be ≤ this value to be classified as Bearish. More negative = more conservative. Range: −0.05 to −0.95">
+                            Bearish Threshold ⓘ
+                        </span>
+                    </label>
+                    <input type="number" name="bear_threshold"
+                           value="{{ engine.bear_threshold }}"
+                           min="-0.95" max="-0.05" step="0.05"
+                           style="font-weight:600; color:var(--red);">
+                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
+                        score ≤ <strong style="color:var(--red);">{{ engine.bear_threshold }}</strong> → bearish
+                    </div>
+                </div>
+
+                <!-- Window -->
+                <div>
+                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                        <span class="has-tip" data-tip="Rolling time window for the aggregate score. Shorter = reacts faster, more volatile. Longer = smoother, slower. Range: 1–120 min.">
+                            Aggregation Window ⓘ
+                        </span>
+                    </label>
+                    <select name="window_minutes"
+                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
+                        {% for m in [1, 2, 5, 10, 15, 20, 30, 60, 120] %}
+                        <option value="{{ m }}" {% if engine.window_minutes == m %}selected{% endif %}>{{ m }} min</option>
+                        {% endfor %}
+                    </select>
+                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
+                        rolling <strong style="color:var(--blue);">{{ engine.window_minutes }} min</strong> window
+                    </div>
+                </div>
+
+                <!-- Relevance Threshold -->
+                <div>
+                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                        <span class="has-tip" data-tip="Minimum relevance score for a headline to be included in the aggregate. Higher = stricter filter, less noise. Lower = more headlines counted. Range: 0.05 – 0.95">
+                            Relevance Filter ⓘ
+                        </span>
+                    </label>
+                    <select name="relevance_threshold"
+                        style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none; font-weight:600;">
+                        {% for v in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] %}
+                        <option value="{{ v }}" {% if engine.relevance_threshold == v %}selected{% endif %}>≥ {{ (v * 100)|int }}%</option>
+                        {% endfor %}
+                    </select>
+                    <div style="font-size:.68rem; color:var(--muted); margin-top:4px;">
+                        min relevance <strong style="color:var(--blue);">{{ (engine.relevance_threshold * 100)|int }}%</strong>
+                    </div>
+                </div>
+
+                <!-- Save button -->
+                <div>
+                    <button type="submit" class="btn btn-primary" style="white-space:nowrap; height:38px;">
+                        💾 Save
+                    </button>
+                </div>
+            </div>
+
+            <!-- Visual threshold bar -->
+            <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+                <div style="font-size:.68rem; color:var(--muted); margin-bottom:6px;">Score Range Preview</div>
+                <div style="position:relative; height:24px; background:linear-gradient(to right,#7f1d1d,#dc2626,#f59e0b,#10b981,#065f46); border-radius:6px;">
+                    <!-- Bear zone marker -->
+                    <div style="position:absolute; top:0; bottom:0; left:0;
+                        width:{{ ((engine.bear_threshold + 1) / 2 * 100)|round|int }}%;
+                        background:rgba(239,68,68,0.25); border-right:2px solid #ef4444; border-radius:6px 0 0 6px;">
+                    </div>
+                    <!-- Bull zone marker -->
+                    <div style="position:absolute; top:0; bottom:0; right:0;
+                        width:{{ ((1 - (engine.bull_threshold + 1) / 2) * 100)|round|int }}%;
+                        background:rgba(16,185,129,0.25); border-left:2px solid #10b981; border-radius:0 6px 6px 0;">
+                    </div>
+                    <!-- Labels -->
+                    <div style="position:absolute; left:{{ ((engine.bear_threshold + 1) / 2 * 100)|round|int / 2 }}%; top:50%; transform:translate(-50%,-50%); font-size:.65rem; font-weight:700; color:white;">
+                        Bearish
+                    </div>
+                    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:.65rem; font-weight:700; color:white;">
+                        Neutral
+                    </div>
+                    <div style="position:absolute; right:{{ ((1 - (engine.bull_threshold + 1) / 2) * 100)|round|int / 2 }}%; top:50%; transform:translate(50%,-50%); font-size:.65rem; font-weight:700; color:white;">
+                        Bullish
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:.65rem; color:var(--muted); margin-top:3px;">
+                    <span>−1.0</span>
+                    <span style="color:var(--red);">{{ engine.bear_threshold }}</span>
+                    <span>0</span>
+                    <span style="color:var(--green);">+{{ engine.bull_threshold }}</span>
+                    <span>+1.0</span>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <!-- How Scoring Works -->
     <div class="card" style="padding:20px;">
         <div style="font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">How Scoring Works</div>

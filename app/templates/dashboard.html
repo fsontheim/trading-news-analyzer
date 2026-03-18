@@ -35,13 +35,16 @@
 
         <div style="margin-top:18px; display:flex; flex-direction:column; gap:5px;">
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--green);">▲ ≥ +0.35</span><span style="color:var(--muted);">Bullish</span>
+                <span style="color:var(--green);">▲ ≥ <span id="bull-thresh">{{ "+%.2f"|format(score.bull_threshold) if score.bull_threshold is defined else "+0.35" }}</span></span>
+                <span style="color:var(--muted);">Bullish</span>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--muted);">● −0.35 … +0.35</span><span style="color:var(--muted);">Neutral</span>
+                <span style="color:var(--muted);">● in between</span>
+                <span style="color:var(--muted);">Neutral</span>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
-                <span style="color:var(--red);">▼ ≤ −0.35</span><span style="color:var(--muted);">Bearish</span>
+                <span style="color:var(--red);">▼ ≤ <span id="bear-thresh">{{ "%.2f"|format(score.bear_threshold) if score.bear_threshold is defined else "-0.35" }}</span></span>
+                <span style="color:var(--muted);">Bearish</span>
             </div>
         </div>
 
@@ -289,6 +292,11 @@ async function refreshScore() {
         document.getElementById('score-dir').style.color   = colors[d.direction];
         document.getElementById('score-meta').textContent  = d.news_count + ' headlines · last ' + d.window_minutes + ' min';
         document.getElementById('gauge-thumb').style.left  = ((d.score + 1) / 2 * 100).toFixed(1) + '%';
+        // Update live threshold labels
+        if (d.bull_threshold !== undefined) {
+            document.getElementById('bull-thresh').textContent = '+' + d.bull_threshold.toFixed(2);
+            document.getElementById('bear-thresh').textContent = d.bear_threshold.toFixed(2);
+        }
     } catch(e) {}
 }
 
