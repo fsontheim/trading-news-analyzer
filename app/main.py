@@ -8,14 +8,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from .storage import (
     seed_defaults, get_feeds, add_feed, update_feed, toggle_feed, delete_feed,
     get_news, get_analyzed_news, get_score_history, get_stats,
-    get_engine_settings, save_engine_settings,
+    get_engine_settings, save_engine_settings, activate_profile,
 )
 from .sentiment import load_model, get_status as model_status, analyze_sentiment, is_model_ready
 from .score_engine import compute_aggregate_score, compute_relevance, RELEVANCE_THRESHOLD
@@ -95,7 +95,17 @@ async def api_save_engine_settings(
         bear_threshold=bear_threshold,
         window_minutes=window_minutes,
         relevance_threshold=relevance_threshold,
+        active_profile="custom",
     )
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@app.post("/api/engine/profile/{profile_key}")
+async def api_activate_profile(profile_key: str):
+    try:
+        activate_profile(profile_key)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Profile not found")
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -140,7 +150,9 @@ async def api_news(limit: int = 50):
 
 @app.get("/api/score")
 async def api_score(window: int = 10):
-    return compute_aggregate_score(get_analyzed_news(300), window_minutes=window)
+    result = compute_aggregate_score(get_analyzed_news(300), window_minutes=window)
+    result["active_profile"] = get_engine_settings().get("active_profile", "custom")
+    return result
 
 
 @app.get("/api/score/history")

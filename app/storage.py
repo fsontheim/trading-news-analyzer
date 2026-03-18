@@ -210,13 +210,50 @@ def get_score_history(hours: int = 2) -> List[Dict]:
     ]
 
 # ---------------------------------------------------------------------------
-# Engine Settings
+# Engine Settings & Profiles
 # ---------------------------------------------------------------------------
-ENGINE_SETTINGS_DEFAULTS = {
-    "bull_threshold":    0.35,   # score >= this → bullish
-    "bear_threshold":   -0.35,   # score <= this → bearish
-    "window_minutes":   10,      # rolling aggregation window
-    "relevance_threshold": 0.30, # min relevance to include in aggregate
+
+BUILTIN_PROFILES = {
+    "default": {
+        "label":               "Default",
+        "description":         "Balanced settings. Good starting point for any market.",
+        "bull_threshold":      0.35,
+        "bear_threshold":     -0.35,
+        "window_minutes":      10,
+        "relevance_threshold": 0.30,
+    },
+    "0dte": {
+        "label":               "0DTE SPX/SPY",
+        "description":         "Optimised for BullPut/BearCall Spreads & Iron Condors on SPX/SPY. Fast window, tight thresholds, strict relevance filter.",
+        "bull_threshold":      0.20,
+        "bear_threshold":     -0.20,
+        "window_minutes":      2,
+        "relevance_threshold": 0.50,
+    },
+    "swing": {
+        "label":               "Swing Trading",
+        "description":         "Multi-day positions. Slower, smoother signals. Less noise, more stability.",
+        "bull_threshold":      0.35,
+        "bear_threshold":     -0.35,
+        "window_minutes":      30,
+        "relevance_threshold": 0.40,
+    },
+    "event_day": {
+        "label":               "Event Day (FOMC/CPI/NFP)",
+        "description":         "High-impact macro days. Ultra-sensitive, 1-min window, hard macro-only filter. Switch manually on known event days.",
+        "bull_threshold":      0.15,
+        "bear_threshold":     -0.15,
+        "window_minutes":      1,
+        "relevance_threshold": 0.70,
+    },
+}
+
+SETTINGS_DEFAULTS = {
+    "active_profile":      "0dte",   # 0DTE is the default active profile
+    "bull_threshold":       0.20,
+    "bear_threshold":      -0.20,
+    "window_minutes":       2,
+    "relevance_threshold":  0.50,
 }
 
 
@@ -225,25 +262,43 @@ def get_engine_settings() -> Dict:
         data = _read(SETTINGS_FILE) if SETTINGS_FILE.exists() else {}
     if not isinstance(data, dict):
         data = {}
-    # Merge with defaults so new keys always exist
-    return {**ENGINE_SETTINGS_DEFAULTS, **data}
+    result = {**SETTINGS_DEFAULTS, **data}
+    result["profiles"] = BUILTIN_PROFILES
+    return result
 
 
 def save_engine_settings(
-    bull_threshold: float,
-    bear_threshold: float,
-    window_minutes: int,
+    bull_threshold:      float,
+    bear_threshold:      float,
+    window_minutes:      int,
     relevance_threshold: float,
+    active_profile:      str = "custom",
 ) -> Dict:
     settings = {
-        "bull_threshold":     round(min(max(bull_threshold,   0.05), 0.95), 2),
-        "bear_threshold":     round(max(min(bear_threshold,  -0.05), -0.95), 2),
-        "window_minutes":     max(1, min(int(window_minutes), 120)),
-        "relevance_threshold": round(min(max(relevance_threshold, 0.05), 0.95), 2),
+        "active_profile":      active_profile,
+        "bull_threshold":      round(min(max(float(bull_threshold),   0.05),  0.95), 2),
+        "bear_threshold":      round(max(min(float(bear_threshold),  -0.05), -0.95), 2),
+        "window_minutes":      max(1, min(int(window_minutes), 120)),
+        "relevance_threshold": round(min(max(float(relevance_threshold), 0.05), 0.95), 2),
     }
     with _locks["settings"]:
         _write(SETTINGS_FILE, settings)
+    settings["profiles"] = BUILTIN_PROFILES
     return settings
+
+
+def activate_profile(profile_key: str) -> Dict:
+    """Switch to a built-in profile and save as active."""
+    profile = BUILTIN_PROFILES.get(profile_key)
+    if not profile:
+        raise ValueError(f"Unknown profile: {profile_key}")
+    return save_engine_settings(
+        bull_threshold=      profile["bull_threshold"],
+        bear_threshold=      profile["bear_threshold"],
+        window_minutes=      profile["window_minutes"],
+        relevance_threshold= profile["relevance_threshold"],
+        active_profile=      profile_key,
+    )
 
 
 # ---------------------------------------------------------------------------
