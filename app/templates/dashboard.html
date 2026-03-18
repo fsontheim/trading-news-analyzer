@@ -150,13 +150,17 @@
             <span id="news-count-badge" style="background:rgba(59,130,246,.12); color:var(--blue); font-size:0.68rem; font-weight:600; padding:2px 8px; border-radius:10px;">— items</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px; font-size:0.72rem; color:var(--muted);">
-            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"
+                   title="Show only headlines that matched market-relevant keywords (relevance ≥ 30%). Irrelevant items are dimmed and skipped by FinBERT.">
                 <input type="checkbox" id="filter-relevant" onchange="refreshNews()" checked style="accent-color:var(--blue);">
-                Relevant only
+                <span class="filter-label">Relevant only</span>
+                <span style="color:var(--muted); font-size:.65rem; border-bottom:1px dashed var(--muted);">ⓘ</span>
             </label>
-            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"
+                   title="Show only headlines that have been processed by FinBERT and have a sentiment score. Pending items are still awaiting analysis.">
                 <input type="checkbox" id="filter-analyzed" onchange="refreshNews()">
-                Analyzed only
+                <span class="filter-label">Analyzed only</span>
+                <span style="color:var(--muted); font-size:.65rem; border-bottom:1px dashed var(--muted);">ⓘ</span>
             </label>
         </div>
     </div>

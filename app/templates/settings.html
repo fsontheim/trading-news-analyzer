@@ -2,7 +2,7 @@
 {% block title %}Settings – Trading News AI{% endblock %}
 
 {% block content %}
-<div style="max-width:900px;">
+<div style="max-width:980px;">
 
     <!-- Stats -->
     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
@@ -26,13 +26,24 @@
             RSS Feeds
         </div>
         {% if feeds %}
+        <div style="overflow-x:auto;">
         <table>
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>URL</th>
                     <th style="width:70px; text-align:center;">Weight</th>
-                    <th style="width:80px; text-align:center;">Enabled</th>
+                    <th style="width:105px; text-align:center;">
+                        <span class="has-tip" data-tip="How often this feed is polled for new headlines. The scheduler checks every 10 s and fetches only when the interval has elapsed.">
+                            Interval ⓘ
+                        </span>
+                    </th>
+                    <th style="width:90px; text-align:center;">
+                        <span class="has-tip" data-tip="Last time this feed was successfully polled.">
+                            Last Poll ⓘ
+                        </span>
+                    </th>
+                    <th style="width:76px; text-align:center;">Enabled</th>
                     <th style="width:130px; text-align:right;">Actions</th>
                 </tr>
             </thead>
@@ -40,12 +51,26 @@
             {% for feed in feeds %}
             <tr>
                 <td style="font-weight:600; white-space:nowrap;">{{ feed.name }}</td>
-                <td style="font-size:.75rem; color:var(--muted);">
-                    <a href="{{ feed.url }}" target="_blank" rel="noopener" style="color:var(--muted); text-decoration:none;" title="{{ feed.url }}">
-                        {{ feed.url[:60] }}{% if feed.url|length > 60 %}…{% endif %}
+                <td style="font-size:.75rem; color:var(--muted); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <a href="{{ feed.url }}" target="_blank" rel="noopener"
+                       style="color:var(--muted); text-decoration:none;" title="{{ feed.url }}">
+                        {{ feed.url[:55] }}{% if feed.url|length > 55 %}…{% endif %}
                     </a>
                 </td>
                 <td style="text-align:center; font-size:.8rem; font-weight:600;">{{ "%.1f"|format(feed.weight) }}</td>
+                <td style="text-align:center;">
+                    <span style="background:rgba(59,130,246,.1); color:var(--blue); font-size:.72rem; font-weight:600; padding:2px 9px; border-radius:12px; white-space:nowrap;">
+                        {% set s = feed.poll_interval %}
+                        {% if s < 60 %}{{ s }}s{% elif s == 60 %}1 min{% elif s < 3600 %}{{ (s // 60) }}min{% else %}{{ (s // 3600) }}h{% endif %}
+                    </span>
+                </td>
+                <td style="text-align:center; font-size:.72rem; color:var(--muted); white-space:nowrap;">
+                    {% if feed.last_polled %}
+                        {{ feed.last_polled[11:16] }} UTC
+                    {% else %}
+                        <span style="color:var(--muted);">—</span>
+                    {% endif %}
+                </td>
                 <td style="text-align:center;">
                     <form method="post" action="/api/feeds/{{ feed.id }}/toggle" style="display:inline;">
                         <label class="toggle">
@@ -57,9 +82,13 @@
                 <td style="text-align:right;">
                     <div style="display:flex; gap:6px; justify-content:flex-end;">
                         <button class="btn btn-ghost" style="font-size:.7rem; padding:4px 10px;"
-                                onclick="openEdit({{ feed.id }}, '{{ feed.name|replace("'","\\'") }}', '{{ feed.url|replace("'","\\'") }}', {{ feed.weight }})">
-                            Edit
-                        </button>
+                                onclick="openEdit(
+                                    {{ feed.id }},
+                                    '{{ feed.name|replace("'","\\'") }}',
+                                    '{{ feed.url|replace("'","\\'") }}',
+                                    {{ feed.weight }},
+                                    {{ feed.poll_interval }}
+                                )">Edit</button>
                         <form method="post" action="/api/feeds/{{ feed.id }}/delete"
                               onsubmit="return confirm('Delete feed and all its news?')">
                             <button type="submit" class="btn btn-danger" style="font-size:.7rem; padding:4px 10px;">Delete</button>
@@ -70,6 +99,7 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
         {% else %}
         <div style="padding:40px; text-align:center; color:var(--muted); font-size:.85rem;">No feeds configured. Add one below.</div>
         {% endif %}
@@ -79,7 +109,7 @@
     <div class="card" style="padding:20px; margin-bottom:20px;">
         <div style="font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">Add New RSS Feed</div>
         <form method="post" action="/api/feeds/add">
-            <div style="display:grid; grid-template-columns:180px 1fr 90px auto; gap:10px; align-items:end;">
+            <div style="display:grid; grid-template-columns:160px 1fr 80px 150px auto; gap:10px; align-items:end;">
                 <div>
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">Name</label>
                     <input type="text" name="name" placeholder="Reuters Markets" required>
@@ -93,7 +123,23 @@
                     <input type="number" name="weight" value="0.8" min="0.1" max="1.0" step="0.1">
                 </div>
                 <div>
-                    <button type="submit" class="btn btn-success" style="white-space:nowrap;">+ Add Feed</button>
+                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">
+                        <span class="has-tip" data-tip="How often to poll this feed. Min 10 s. Fast feeds (FinancialJuice) can use 15–30 s; slower sources 60–300 s.">
+                            Poll Interval ⓘ
+                        </span>
+                    </label>
+                    <select name="poll_interval" style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none;">
+                        <option value="10">10 seconds</option>
+                        <option value="15">15 seconds</option>
+                        <option value="30" selected>30 seconds</option>
+                        <option value="60">1 minute</option>
+                        <option value="120">2 minutes</option>
+                        <option value="300">5 minutes</option>
+                        <option value="600">10 minutes</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success" style="white-space:nowrap; height:38px;">+ Add Feed</button>
                 </div>
             </div>
         </form>
@@ -115,15 +161,15 @@
                 Linear recency decay. Clamped to [−1, +1].
             </div>
             <div>
-                <div style="color:var(--text); font-weight:600; margin-bottom:5px;">Storage</div>
-                All data is stored as plain JSON files in <code style="color:var(--yellow); background:var(--bg-row); padding:2px 5px; border-radius:3px;">/app/data/</code>:<br>
-                <code style="font-size:.75rem;">feeds.json · news.json · score_history.json</code>
+                <div style="color:var(--text); font-weight:600; margin-bottom:5px;">Poll Interval (per Feed)</div>
+                The scheduler ticks every <strong>10 s</strong> and checks per-feed whether the
+                configured interval has elapsed since the last poll. Each feed can run at
+                its own speed independently.
             </div>
             <div>
-                <div style="color:var(--text); font-weight:600; margin-bottom:5px;">Direction Thresholds</div>
-                <span style="color:var(--green);">▲ Bullish</span> ≥ +0.35 &nbsp;
-                <span style="color:var(--muted);">● Neutral</span> ±0.35 &nbsp;
-                <span style="color:var(--red);">▼ Bearish</span> ≤ −0.35
+                <div style="color:var(--text); font-weight:600; margin-bottom:5px;">Storage</div>
+                Plain JSON in <code style="color:var(--yellow); background:var(--bg-row); padding:2px 5px; border-radius:3px;">/app/data/</code>:<br>
+                <code style="font-size:.75rem;">feeds.json · news.json · score_history.json</code>
             </div>
         </div>
     </div>
@@ -131,7 +177,7 @@
 
 <!-- Edit Modal -->
 <div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center;">
-    <div class="card" style="padding:24px; min-width:440px; max-width:600px; width:90%;">
+    <div class="card" style="padding:24px; min-width:460px; max-width:620px; width:92%;">
         <div style="font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">Edit Feed</div>
         <form id="edit-form" method="post">
             <div style="display:flex; flex-direction:column; gap:12px;">
@@ -143,9 +189,24 @@
                     <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">RSS URL</label>
                     <input type="url" name="url" id="edit-url" required>
                 </div>
-                <div>
-                    <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">Weight (0.1–1.0)</label>
-                    <input type="number" name="weight" id="edit-weight" min="0.1" max="1.0" step="0.1">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">Weight (0.1 – 1.0)</label>
+                        <input type="number" name="weight" id="edit-weight" min="0.1" max="1.0" step="0.1">
+                    </div>
+                    <div>
+                        <label style="font-size:.72rem; color:var(--muted); display:block; margin-bottom:4px;">Poll Interval</label>
+                        <select name="poll_interval" id="edit-interval"
+                            style="background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:8px 10px; font-size:.82rem; width:100%; outline:none;">
+                            <option value="10">10 seconds</option>
+                            <option value="15">15 seconds</option>
+                            <option value="30">30 seconds</option>
+                            <option value="60">1 minute</option>
+                            <option value="120">2 minutes</option>
+                            <option value="300">5 minutes</option>
+                            <option value="600">10 minutes</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:4px;">
                     <button type="submit" class="btn btn-primary">Save</button>
@@ -155,18 +216,56 @@
         </form>
     </div>
 </div>
+
+<!-- Tooltip element -->
+<div id="tooltip" style="
+    position:fixed; z-index:999; pointer-events:none; display:none;
+    background:var(--bg-card); border:1px solid var(--border);
+    color:var(--text); font-size:.75rem; padding:7px 11px;
+    border-radius:7px; max-width:260px; line-height:1.5;
+    box-shadow:0 4px 16px var(--shadow);
+"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function openEdit(id, name, url, weight) {
-    document.getElementById('edit-form').action  = '/api/feeds/'+id+'/update';
-    document.getElementById('edit-name').value   = name;
-    document.getElementById('edit-url').value    = url;
-    document.getElementById('edit-weight').value = weight;
+// ── Edit modal ────────────────────────────────────────────────────
+function openEdit(id, name, url, weight, interval) {
+    document.getElementById('edit-form').action    = '/api/feeds/'+id+'/update';
+    document.getElementById('edit-name').value     = name;
+    document.getElementById('edit-url').value      = url;
+    document.getElementById('edit-weight').value   = weight;
+    document.getElementById('edit-interval').value = interval;
     document.getElementById('edit-modal').style.display = 'flex';
 }
-function closeEdit() { document.getElementById('edit-modal').style.display='none'; }
-document.getElementById('edit-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeEdit(); });
+function closeEdit() { document.getElementById('edit-modal').style.display = 'none'; }
+document.getElementById('edit-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeEdit();
+});
+
+// ── Tooltip ───────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('.has-tip').forEach(el => {
+    el.style.cursor = 'help';
+    el.style.borderBottom = '1px dashed var(--muted)';
+    el.style.display = 'inline';
+
+    el.addEventListener('mouseenter', e => {
+        tooltip.textContent = el.dataset.tip;
+        tooltip.style.display = 'block';
+    });
+    el.addEventListener('mousemove', e => {
+        const x = e.clientX + 14;
+        const y = e.clientY + 14;
+        tooltip.style.left = Math.min(x, window.innerWidth - 280) + 'px';
+        tooltip.style.top  = y + 'px';
+    });
+    el.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+    });
+});
+
+// Auto-refresh last-polled times every 15 s
+setInterval(() => location.reload(), 30000);
 </script>
 {% endblock %}
