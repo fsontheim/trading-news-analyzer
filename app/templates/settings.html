@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Settings – Trading News AI{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+    <!-- ── Stats Row ──────────────────────────────────────────── -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
+        <div class="card" style="padding:16px;">
+            <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;">Total Headlines</div>
+            <div style="font-size:1.8rem; font-weight:700; margin-top:4px;">{{ stats.total_news }}</div>
+        </div>
+        <div class="card" style="padding:16px;">
+            <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;">Analysed</div>
+            <div style="font-size:1.8rem; font-weight:700; margin-top:4px; color:var(--green);">{{ stats.analyzed }}</div>
+        </div>
+        <div class="card" style="padding:16px;">
+            <div style="font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;">Pending (model loading)</div>
+            <div style="font-size:1.8rem; font-weight:700; margin-top:4px; color:var(--yellow);">{{ stats.pending }}</div>
+        </div>
+    </div>
+
+    <!-- ── Feed List ──────────────────────────────────────────── -->
+    <div class="card" style="margin-bottom:20px;">
+        <div style="padding:14px 16px; border-bottom:1px solid var(--border); font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;">
+            RSS Feeds
+        </div>
+
+        {% if feeds %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th style="width:70px; text-align:center;">Weight</th>
+                    <th style="width:80px; text-align:center;">Enabled</th>
+                    <th style="width:130px; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for feed in feeds %}
+            <tr>
+                <td style="font-weight:600; white-space:nowrap;">{{ feed.name }}</td>
+                <td style="font-size:0.75rem; color:var(--muted);">
+                    <a href="{{ feed.url }}" target="_blank" rel="noopener"
+                       style="color:var(--muted); text-decoration:none;"
+                       title="{{ feed.url }}">
+                        {{ feed.url[:60] }}{% if feed.url|length > 60 %}…{% endif %}
+                    </a>
+                </td>
+                <td style="text-align:center; font-size:0.8rem; font-weight:600;">
+                    {{ "%.1f" | format(feed.weight) }}
+                </td>
+                <td style="text-align:center;">
+                    <form method="post" action="/api/feeds/{{ feed.id }}/toggle" style="display:inline;">
+                        <label class="toggle">
+                            <input type="checkbox" {% if feed.enabled %}checked{% endif %} onchange="this.form.submit()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </form>
+                </td>
+                <td style="text-align:right;">
+                    <div style="display:flex; gap:6px; justify-content:flex-end;">
+                        <button class="btn btn-ghost" style="font-size:0.7rem; padding:4px 10px;"
+                                onclick="openEdit({{ feed.id }}, '{{ feed.name | replace("'", "\\'") }}', '{{ feed.url | replace("'", "\\'") }}', {{ feed.weight }})">
+                            Edit
+                        </button>
+                        <form method="post" action="/api/feeds/{{ feed.id }}/delete"
+                              onsubmit="return confirm('Delete feed \'{{ feed.name }}\' and all its news?')">
+                            <button type="submit" class="btn btn-danger" style="font-size:0.7rem; padding:4px 10px;">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding:40px; text-align:center; color:var(--muted); font-size:0.85rem;">
+            No feeds configured yet. Add one below.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ── Add New Feed ───────────────────────────────────────── -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+        <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">
+            Add New RSS Feed
+        </div>
+        <form method="post" action="/api/feeds/add">
+            <div style="display:grid; grid-template-columns:180px 1fr 90px auto; gap:10px; align-items:end;">
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Name</label>
+                    <input type="text" name="name" placeholder="Reuters Markets" required>
+                </div>
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">RSS URL</label>
+                    <input type="url" name="url" placeholder="https://feeds.reuters.com/reuters/businessNews" required>
+                </div>
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Weight (0.1–1.0)</label>
+                    <input type="number" name="weight" value="0.8" min="0.1" max="1.0" step="0.1">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success" style="white-space:nowrap;">+ Add Feed</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ── How Scoring Works ──────────────────────────────────── -->
+    <div class="card" style="padding:20px;">
+        <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;">
+            How Scoring Works
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; font-size:0.8rem; color:var(--muted); line-height:1.7;">
+            <div>
+                <div style="color:var(--text); font-weight:600; margin-bottom:6px;">FinBERT Sentiment</div>
+                Each headline is sent through FinBERT (ProsusAI/finbert).<br>
+                <code style="color:var(--green); background:#0d1320; padding:2px 6px; border-radius:3px;">score = positive − negative</code><br>
+                Range: −1.0 (fully negative) to +1.0 (fully positive)
+            </div>
+            <div>
+                <div style="color:var(--text); font-weight:600; margin-bottom:6px;">Aggregate Score</div>
+                <code style="color:var(--blue); background:#0d1320; padding:2px 6px; border-radius:3px;">Σ(score × relevance × recency × weight) / Σ weights</code><br>
+                10-minute sliding window. Older news decays linearly.<br>
+                Score is clamped to [−1, +1].
+            </div>
+            <div>
+                <div style="color:var(--text); font-weight:600; margin-bottom:6px;">Relevance Filter</div>
+                Headlines are pre-scored by keyword matching before FinBERT.<br>
+                <span style="color:var(--green);">High relevance</span>: Fed, CPI, interest rates, earnings…<br>
+                Items below 30% relevance are stored but not analysed.
+            </div>
+            <div>
+                <div style="color:var(--text); font-weight:600; margin-bottom:6px;">Direction Thresholds</div>
+                <span style="color:var(--green);">▲ Bullish</span>: score ≥ +0.35<br>
+                <span style="color:var(--muted);">● Neutral</span>: −0.35 to +0.35<br>
+                <span style="color:var(--red);">▼ Bearish</span>: score ≤ −0.35<br>
+                These can be adjusted in <code style="color:var(--yellow); background:#0d1320; padding:2px 5px; border-radius:3px;">score_engine.py</code>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Edit Feed Modal ────────────────────────────────────────── -->
+<div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:100; align-items:center; justify-content:center;">
+    <div class="card" style="padding:24px; min-width:440px; max-width:600px; width:90%;">
+        <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;">
+            Edit Feed
+        </div>
+        <form id="edit-form" method="post">
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Name</label>
+                    <input type="text" name="name" id="edit-name" required>
+                </div>
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">RSS URL</label>
+                    <input type="url" name="url" id="edit-url" required>
+                </div>
+                <div>
+                    <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Weight (0.1–1.0)</label>
+                    <input type="number" name="weight" id="edit-weight" min="0.1" max="1.0" step="0.1">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:4px;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEdit(id, name, url, weight) {
+    document.getElementById('edit-form').action = '/api/feeds/' + id + '/update';
+    document.getElementById('edit-name').value   = name;
+    document.getElementById('edit-url').value    = url;
+    document.getElementById('edit-weight').value = weight;
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+function closeEdit() {
+    document.getElementById('edit-modal').style.display = 'none';
+}
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeEdit();
+});
+</script>
+{% endblock %}

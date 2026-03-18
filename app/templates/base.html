@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Trading News Analyzer{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-base:   #070b14;
+            --bg-card:   #0d1320;
+            --bg-row:    #111827;
+            --border:    #1e2a3b;
+            --green:     #10b981;
+            --red:       #ef4444;
+            --yellow:    #f59e0b;
+            --blue:      #3b82f6;
+            --text:      #e2e8f0;
+            --muted:     #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-base); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-base); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        /* Nav */
+        nav { background: var(--bg-card); border-bottom: 1px solid var(--border); }
+        .nav-link { font-size: 0.8rem; color: var(--muted); text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: color 0.2s; }
+        .nav-link:hover { color: var(--text); }
+        .nav-link.active { color: var(--green); font-weight: 600; }
+
+        /* Cards */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+
+        /* Status dot */
+        .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+        .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .dot-yellow { background: var(--yellow); animation: pulse 1.5s ease-in-out infinite; }
+        .dot-red { background: var(--red); }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+        /* Score gauge bar */
+        .gauge-track { background: linear-gradient(to right, #7f1d1d, #dc2626, #f59e0b, #10b981, #065f46); border-radius: 100px; height: 10px; position: relative; }
+        .gauge-thumb { width: 14px; height: 20px; background: white; border-radius: 3px; position: absolute; top: -5px; transform: translateX(-50%); transition: left 0.6s cubic-bezier(.22,.68,0,1.2); box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+
+        /* News table */
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        thead th { color: var(--muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; background: var(--bg-card); position: sticky; top: 0; z-index: 1; }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+        tbody td { padding: 9px 12px; vertical-align: middle; }
+
+        /* Sentiment mini bars */
+        .sent-bar { display: flex; gap: 2px; align-items: center; }
+        .sent-seg { height: 8px; border-radius: 2px; }
+
+        /* Score badge */
+        .score-badge { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+        .score-bull  { background: rgba(16,185,129,.15); color: #10b981; }
+        .score-bear  { background: rgba(239,68,68,.15);  color: #ef4444; }
+        .score-neut  { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+        /* Relevance dot */
+        .rel-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; width: 50px; }
+        .rel-fill { height: 100%; border-radius: 3px; background: var(--blue); }
+
+        /* Form inputs */
+        input[type=text], input[type=number], input[type=url] {
+            background: #0d1320; border: 1px solid var(--border);
+            color: var(--text); border-radius: 6px; padding: 7px 10px;
+            font-size: 0.82rem; outline: none; width: 100%;
+        }
+        input:focus { border-color: var(--blue); }
+        .btn { padding: 7px 16px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-success { background: var(--green); color: white; }
+        .btn-danger  { background: var(--red);   color: white; }
+        .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+
+        /* Toggle switch */
+        .toggle { position: relative; width: 36px; height: 20px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; inset: 0; background: #334155; border-radius: 20px; cursor: pointer; transition: .3s; }
+        .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
+        input:checked + .toggle-slider { background: var(--green); }
+        input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+        /* Direction arrow */
+        .arrow-up   { color: var(--green); }
+        .arrow-down { color: var(--red);   }
+        .arrow-flat { color: var(--muted); }
+    </style>
+</head>
+<body>
+<!-- ── Navigation ─────────────────────────────────────────────── -->
+<nav style="padding: 0 24px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; height:52px;">
+        <!-- Logo -->
+        <div style="display:flex; align-items:center; gap:32px;">
+            <span style="font-weight:700; font-size:0.95rem; letter-spacing:-.01em;">
+                📊 Trading<span style="color:var(--green);">News</span> AI
+            </span>
+            <div style="display:flex; gap:4px;">
+                <a href="/"        class="nav-link {% if active_page=='dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="/settings" class="nav-link {% if active_page=='settings'  %}active{% endif %}">Settings</a>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div id="model-status-badge" style="display:flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--muted);">
+                {% if model.ready %}
+                    <span class="dot dot-green"></span> FinBERT ready
+                {% elif model.loading %}
+                    <span class="dot dot-yellow"></span> Loading model…
+                {% else %}
+                    <span class="dot dot-red"></span> Model error
+                {% endif %}
+            </div>
+            <div id="feed-count-badge" style="font-size:0.72rem; color:var(--muted);">
+                — feeds active
+            </div>
+            <div id="last-update" style="font-size:0.72rem; color:#374151;">UTC —</div>
+        </div>
+    </div>
+</nav>
+
+<!-- ── Main Content ───────────────────────────────────────────── -->
+<main style="padding: 20px 24px;">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ── Shared scripts ─────────────────────────────────────────── -->
+<script>
+    // Status poller — updates navbar every 8 s
+    async function pollStatus() {
+        try {
+            const r = await fetch('/api/status');
+            const d = await r.json();
+            const badge = document.getElementById('model-status-badge');
+            if (d.model.ready) {
+                badge.innerHTML = '<span class="dot dot-green"></span> FinBERT ready';
+            } else if (d.model.loading) {
+                badge.innerHTML = '<span class="dot dot-yellow"></span> Loading model…';
+            } else {
+                badge.innerHTML = '<span class="dot dot-red"></span> Model error';
+            }
+            const fc = document.getElementById('feed-count-badge');
+            if (fc) fc.textContent = d.feeds + ' feed' + (d.feeds !== 1 ? 's' : '') + ' active';
+            const lu = document.getElementById('last-update');
+            if (lu) lu.textContent = 'UTC ' + new Date().toISOString().slice(11,19);
+        } catch(e) {}
+    }
+    pollStatus();
+    setInterval(pollStatus, 8000);
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
