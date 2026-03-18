@@ -249,11 +249,14 @@ BUILTIN_PROFILES = {
 }
 
 SETTINGS_DEFAULTS = {
-    "active_profile":      "0dte",   # 0DTE is the default active profile
+    "active_profile":      "0dte",
     "bull_threshold":       0.20,
     "bear_threshold":      -0.20,
     "window_minutes":       2,
     "relevance_threshold":  0.50,
+    "dedup_enabled":        True,   # fuzzy title deduplication
+    "dedup_threshold":      0.80,   # similarity threshold (0.0–1.0)
+    "dedup_window":         100,    # compare against last N headlines
 }
 
 
@@ -273,6 +276,9 @@ def save_engine_settings(
     window_minutes:      int,
     relevance_threshold: float,
     active_profile:      str = "custom",
+    dedup_enabled:       bool = True,
+    dedup_threshold:     float = 0.80,
+    dedup_window:        int = 100,
 ) -> Dict:
     settings = {
         "active_profile":      active_profile,
@@ -280,6 +286,9 @@ def save_engine_settings(
         "bear_threshold":      round(max(min(float(bear_threshold),  -0.05), -0.95), 2),
         "window_minutes":      max(1, min(int(window_minutes), 120)),
         "relevance_threshold": round(min(max(float(relevance_threshold), 0.05), 0.95), 2),
+        "dedup_enabled":       bool(dedup_enabled),
+        "dedup_threshold":     round(min(max(float(dedup_threshold), 0.50), 0.99), 2),
+        "dedup_window":        max(10, min(int(dedup_window), 500)),
     }
     with _locks["settings"]:
         _write(SETTINGS_FILE, settings)
@@ -288,17 +297,60 @@ def save_engine_settings(
 
 
 def activate_profile(profile_key: str) -> Dict:
-    """Switch to a built-in profile and save as active."""
+    """Switch to a built-in profile, preserving dedup settings."""
     profile = BUILTIN_PROFILES.get(profile_key)
     if not profile:
         raise ValueError(f"Unknown profile: {profile_key}")
+    # Preserve current dedup settings when switching profiles
+    current = get_engine_settings()
     return save_engine_settings(
         bull_threshold=      profile["bull_threshold"],
         bear_threshold=      profile["bear_threshold"],
         window_minutes=      profile["window_minutes"],
         relevance_threshold= profile["relevance_threshold"],
         active_profile=      profile_key,
+        dedup_enabled=       current.get("dedup_enabled", True),
+        dedup_threshold=     current.get("dedup_threshold", 0.80),
+        dedup_window=        current.get("dedup_window", 100),
     )
+
+
+# ---------------------------------------------------------------------------
+# Fuzzy Deduplication
+# ---------------------------------------------------------------------------
+def is_fuzzy_duplicate(title: str) -> tuple[bool, float, str]:
+    """
+    Check if a headline is too similar to a recently stored one.
+
+    Returns:
+        (is_duplicate, similarity_score, matched_title)
+
+    Uses difflib.SequenceMatcher — no external dependencies.
+    Portable to C#: String.Compare or Levenshtein via NuGet.
+    """
+    import difflib
+
+    cfg     = get_engine_settings()
+    if not cfg.get("dedup_enabled", True):
+        return False, 0.0, ""
+
+    threshold = cfg.get("dedup_threshold", 0.80)
+    window    = cfg.get("dedup_window",    100)
+
+    title_lower = title.lower().strip()
+
+    with _locks["news"]:
+        recent = _read(NEWS_FILE)[:window]
+
+    for item in recent:
+        existing = item.get("title", "").lower().strip()
+        if not existing:
+            continue
+        ratio = difflib.SequenceMatcher(None, title_lower, existing).ratio()
+        if ratio >= threshold:
+            return True, round(ratio, 3), item.get("title", "")
+
+    return False, 0.0, ""
 
 
 # ---------------------------------------------------------------------------

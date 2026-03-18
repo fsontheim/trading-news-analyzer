@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from .storage import (
     seed_defaults, get_feeds, add_feed, update_feed, toggle_feed, delete_feed,
     get_news, get_analyzed_news, get_score_history, get_stats,
-    get_engine_settings, save_engine_settings, activate_profile,
+    get_engine_settings, save_engine_settings, activate_profile, is_fuzzy_duplicate,
 )
 from .sentiment import load_model, get_status as model_status, analyze_sentiment, is_model_ready
 from .score_engine import compute_aggregate_score, compute_relevance, RELEVANCE_THRESHOLD
@@ -89,6 +89,9 @@ async def api_save_engine_settings(
     bear_threshold:      float = Form(...),
     window_minutes:      int   = Form(...),
     relevance_threshold: float = Form(...),
+    dedup_enabled:       str   = Form("off"),   # checkbox: "on" or absent
+    dedup_threshold:     float = Form(0.80),
+    dedup_window:        int   = Form(100),
 ):
     save_engine_settings(
         bull_threshold=bull_threshold,
@@ -96,6 +99,9 @@ async def api_save_engine_settings(
         window_minutes=window_minutes,
         relevance_threshold=relevance_threshold,
         active_profile="custom",
+        dedup_enabled=(dedup_enabled == "on"),
+        dedup_threshold=dedup_threshold,
+        dedup_window=dedup_window,
     )
     return RedirectResponse(url="/settings", status_code=303)
 
@@ -114,18 +120,32 @@ async def api_get_engine_settings():
     return get_engine_settings()
 
 
+@app.post("/api/engine/dedup/test")
+async def api_test_dedup(text: str = Form(...)):
+    """Check if a headline would be deduplicated."""
+    is_dup, score, matched = is_fuzzy_duplicate(text)
+    return {
+        "text":       text,
+        "is_duplicate": is_dup,
+        "similarity": score,
+        "matched":    matched,
+    }
+
+
 # ── JSON API ──────────────────────────────────────────────────────
 @app.get("/api/status")
 async def api_status():
     stats = get_stats()
+    engine = get_engine_settings()
     feeds = get_feeds()
     return {
-        "model":       model_status(),
-        "feeds":       sum(1 for f in feeds if f.get("enabled")),
-        "total_news":  stats["total_news"],
-        "analyzed":    stats["analyzed"],
-        "pending":     stats["pending"],
-        "server_time": datetime.utcnow().isoformat(),
+        "model":         model_status(),
+        "feeds":         sum(1 for f in feeds if f.get("enabled")),
+        "total_news":    stats["total_news"],
+        "analyzed":      stats["analyzed"],
+        "pending":       stats["pending"],
+        "dedup_enabled": engine.get("dedup_enabled", True),
+        "server_time":   datetime.utcnow().isoformat(),
     }
 
 

@@ -16,6 +16,7 @@ from .storage import (
     get_feeds, news_url_exists, add_news_item,
     update_news_sentiment, get_pending_news, append_score_history,
     get_analyzed_news, update_feed_last_polled, get_engine_settings,
+    is_fuzzy_duplicate,
 )
 from .rss_fetcher import fetch_feed
 from .sentiment import analyze_sentiment, is_model_ready
@@ -55,7 +56,16 @@ def poll_feeds() -> None:
             new_count = 0
 
             for entry in entries:
+                # Skip exact URL duplicates
                 if news_url_exists(entry["url"]):
+                    continue
+
+                # Skip fuzzy title duplicates (cross-feed deduplication)
+                is_dup, sim_score, matched = is_fuzzy_duplicate(entry["title"])
+                if is_dup:
+                    logger.debug(
+                        f"[{feed['name']}] Dedup ({sim_score:.0%}): \"{entry['title'][:60]}\" ≈ \"{matched[:60]}\""
+                    )
                     continue
 
                 relevance   = compute_relevance(entry["title"])
